@@ -1,4 +1,4 @@
-package internal
+package scope
 
 type Scope string
 
