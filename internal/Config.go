@@ -9,6 +9,7 @@ import (
 type Config struct {
 	clientID    string `yaml:"clientID"`
 	redirectURI string `yaml:"redirectURI"`
+	serverPort  int16  `yaml:"port"`
 }
 
 func ParseYamlConfig(cfg *Config, configPath string) error {
