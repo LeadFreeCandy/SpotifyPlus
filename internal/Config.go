@@ -11,6 +11,12 @@ type Config struct {
 	ServerPort  int16  `yaml:"port"`
 }
 
+func NewConfigFromYaml(configPath string) (Config, error) {
+	config := Config{}
+	err := ParseYamlConfig(&config, configPath)
+	return config, err
+}
+
 func ParseYamlConfig(cfg *Config, configPath string) error {
 	f, err := os.Open(configPath)
 	if err != nil {
