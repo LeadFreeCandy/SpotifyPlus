@@ -3,7 +3,7 @@ package internal
 import (
 	"fmt"
 	"github.com/SpotifyPlus/internal/scope"
-	"log"
+	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -23,19 +23,29 @@ func generateRandomString(n int) string {
 // It exposes an extraHandler parameter which is optional, which will be executed at the end.
 // If provided the extraHandler is expected to handle generating a valid httpResponse
 func (app *AppState) InitializeAuthenticationRoute(extraHandler func(http.ResponseWriter, *http.Request)) error {
-	redirectURI, err := url.Parse(app.config.redirectURI)
+	redirectURI, err := url.Parse(app.config.RedirectURI)
+	extraHandlerExists := extraHandler != nil
+	app.logger.Info("Initializing Authentication Route", zap.Bool("ExtraHandlerExists", extraHandlerExists))
 	if err != nil {
+		app.logger.Error("URI", zap.Error(err))
 		return err
 	}
 	app.serverMux.HandleFunc(redirectURI.Path, func(writer http.ResponseWriter, request *http.Request) {
-		err := app.ProcessAuthenticationRequestParams(request)
+		logger := app.logger.With(
+			zap.String("service", "Auth Callback"),
+			zap.String("request", request.RequestURI),
+		)
+		logger.Info("Received authentication request")
+
+		err := app.processAuthenticationRequestParams(request)
 		if err != nil {
-			log.Println(err)
+			logger.Error("Failed to process request", zap.Error(err))
 			writer.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		// If the website team wants to use this function they can control where to redirect after successful auth
 		if extraHandler != nil {
+			logger.Info("Passing to extraHandler")
 			extraHandler(writer, request)
 			return
 		}
@@ -46,7 +56,7 @@ func (app *AppState) InitializeAuthenticationRoute(extraHandler func(http.Respon
 	return nil
 }
 
-func (app *AppState) ProcessAuthenticationRequestParams(request *http.Request) error {
+func (app *AppState) processAuthenticationRequestParams(request *http.Request) error {
 	queryParams := request.URL.Query()
 	state := queryParams.Get("state")
 	code := queryParams.Get("code")
@@ -64,7 +74,7 @@ func (app *AppState) GenerateAuthenticationURL(scopes []scope.Scope) (*url.URL, 
 	responseURL, err := url.Parse("https://accounts.spotify.com/authorize")
 
 	if err != nil { // Should never happen
-		log.Println("Failed to create url")
+		app.logger.Error("Failed to parse authorize url", zap.Error(err))
 		return responseURL, err
 	}
 
@@ -72,9 +82,9 @@ func (app *AppState) GenerateAuthenticationURL(scopes []scope.Scope) (*url.URL, 
 	app.authenticationState = state
 
 	queryParams := responseURL.Query()
-	queryParams.Add("client_id", app.config.clientID)
+	queryParams.Add("client_id", app.config.ClientID)
 	queryParams.Add("response_type", "code")
-	queryParams.Add("redirect_uri", app.config.redirectURI)
+	queryParams.Add("redirect_uri", app.config.RedirectURI)
 	queryParams.Add("state", state) // Optional
 
 	for _, providedScope := range scopes {

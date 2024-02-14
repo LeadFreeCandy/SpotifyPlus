@@ -19,13 +19,13 @@ func TestAppState_GenerateAuthenticationURL(t *testing.T) {
 	}{
 		{
 			name:   "Regular Case No scope",
-			config: Config{clientID: "sampleID", redirectURI: "localhost/callback"},
+			config: Config{ClientID: "sampleID", RedirectURI: "localhost/callback"},
 			scopes: []scope.Scope{},
 			want:   regular,
 		},
 		{
 			name:   "Regular Case Scopes",
-			config: Config{clientID: "sampleID", redirectURI: "localhost/callback"},
+			config: Config{ClientID: "sampleID", RedirectURI: "localhost/callback"},
 			scopes: []scope.Scope{scope.UserReadPrivate, scope.UserCreatePartner},
 			want:   regularScoped,
 		},

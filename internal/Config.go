@@ -1,15 +1,14 @@
 package internal
 
 import (
-	"os"
-
 	"gopkg.in/yaml.v2"
+	"os"
 )
 
 type Config struct {
-	clientID    string `yaml:"clientID"`
-	redirectURI string `yaml:"redirectURI"`
-	serverPort  int16  `yaml:"port"`
+	ClientID    string `yaml:"clientID"`
+	RedirectURI string `yaml:"redirectURI"`
+	ServerPort  int16  `yaml:"port"`
 }
 
 func ParseYamlConfig(cfg *Config, configPath string) error {
@@ -18,7 +17,6 @@ func ParseYamlConfig(cfg *Config, configPath string) error {
 		return err
 	}
 	defer f.Close()
-
 	decoder := yaml.NewDecoder(f)
 	err = decoder.Decode(cfg)
 	return err
