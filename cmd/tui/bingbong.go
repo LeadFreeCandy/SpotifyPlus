@@ -3,39 +3,32 @@ package main
 import (
 	"fmt"
 	"image"
+
+	_ "image/jpeg"
 	_ "image/png"
 	"os"
+	"strings"
 
+	//gitlab.com/ethanbakerdev/colors
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-
-	tsize "github.com/kopoli/go-terminal-size"
 )
 
+// for testing purposes
 func getImage(directory string) image.Image {
-	file, _ := os.Open(directory)
-	image, _, _ := image.Decode(file)
-	return image
+	file, err := os.Open(directory)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		os.Exit(1)
+	}
+	img, _, _ := image.Decode(file)
+	defer file.Close()
+	return img
 }
-
-type WindowSizeMsg struct {
-	Width  int
-	Height int
-}
-
-func GetWinSize() WindowSizeMsg {
-	s, _ := tsize.GetSize()
-	w := WindowSizeMsg{s.Width, s.Height}
-	return w
-}
-
-var (
-// colory thingy
-)
 
 var (
 	border = lipgloss.NewStyle().
@@ -73,10 +66,10 @@ var help_keys = keyMap{
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.back, k.skip, k.play, k.quit} //add q quit but then you have to center it
+	return []key.Binding{k.back, k.skip, k.play, k.quit} //get rid and just use helpstyle
 }
 
-func (k keyMap) FullHelp() [][]key.Binding {
+func (k keyMap) FullHelp() [][]key.Binding { //same can prolly get rid of this at some point
 	return nil
 }
 
@@ -93,7 +86,6 @@ type model struct {
 func initialModel() model {
 
 	return model{
-		// Our to-do list is a grocery list
 		choices: []string{"◀◀ ", "||", "▶▶"},
 
 		selected:      make(map[int]struct{}),
@@ -101,6 +93,27 @@ func initialModel() model {
 		help:          help.New(),
 		song_progress: progress.New(progress.WithoutPercentage()),
 	}
+}
+func RGBToHex(r, g, b uint32) string {
+	return fmt.Sprintf("#%02X%02X%02X", r, g, b)
+}
+//Testing image
+func init_cover() string {
+	tmp_img := getImage("/mnt/c/Users/space/Desktop/Yg/gogo/quad_sy_I.jpg") //filepath reveal 😳
+	x := tmp_img.Bounds().Max.X
+	y := tmp_img.Bounds().Max.Y
+	pix_img := strings.Builder{}
+	for i := 0; i <= x; i++ {
+		for j := 0; j <= y; j++ {
+			if j >= 0 { //needs to be fixed
+				r, g, b, _ := tmp_img.At(i, j).RGBA()
+				hex := RGBToHex(r, g, b)
+				pix_img.WriteString(lipgloss.NewStyle().SetString("   ").Background(lipgloss.Color(hex)).String())
+			}
+		}
+		pix_img.WriteString("\n")
+	}
+	return pix_img.String()
 }
 
 func (m model) Init() tea.Cmd {
@@ -144,7 +157,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 
 	border.Render()
-	//fmt.Println(border.Render())
 	artist := "Yuguang"
 	song := "help me"
 
@@ -157,18 +169,27 @@ func (m model) View() string {
 
 	}
 	song_time := "9:99"
-	line := "0:00 " +
-		m.song_progress.View() +
-		" " + song_time +
-		"\n" +
-		info + border.Render(option_text) +
-		"\n" + help_menu
+	//make this into a variable called by main and fix the size with constants or width
+	//of messsage
+	//box size test for border.
+	big_space := ""
+	for i := 0; i < m.height/2; i++ {
+		big_space += strings.Repeat(" ", m.width/4)
+		big_space += "\n"
+	}
 
-	return lipgloss.Place(m.width, m.height*9/10, lipgloss.Center, lipgloss.Bottom, line)
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Bottom,
+		big_space+
+			"0:00 "+
+			m.song_progress.View()+
+			" "+song_time+
+			"\n"+
+			info+border.Render(option_text)+
+			"\n"+help_menu)
 }
 
 func main() {
-
+	fmt.Print(init_cover())
 	p := tea.NewProgram(initialModel())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Erro: %v", err)
