@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"os"
+	"time"
 
 	"github.com/SpotifyPlus/internal"
 	"github.com/SpotifyPlus/internal/scope"
@@ -11,22 +11,15 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func ServeURLToUser(url *url.URL) {
-	fmt.Println(url.String())
-}
-
 func main() {
-	// Prepare the app
-	//loggerZap, _ := zap.NewDevelopment()
 	file, _ := os.OpenFile("internal/main/log.log", os.O_CREATE|os.O_WRONLY, 0644)
 	defer file.Close()
 	fileCore := zapcore.NewCore(zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig()), zapcore.AddSync(file), zap.DebugLevel)
 
-	config, _ := internal.NewConfigFromYaml("internal/main/config.yaml")
+	config, _ := internal.NewConfigFromYaml("./config.yaml")
 	logger := zap.New(fileCore)
 	app := internal.NewApp(config, logger)
 
-	// Initialize auth route and listener
 	app.InitializeAuthenticationRoute(nil)
 	go func() {
 		err := app.EnableHttpListener()
@@ -35,9 +28,10 @@ func main() {
 		}
 	}()
 
-	// Prompt user to authenticate
 	url, _ := app.GenerateAuthenticationURL([]scope.Scope{scope.AppRemoteControl, scope.UgcImageUpload})
-	ServeURLToUser(url)
-	artists, _ := internal.GetArtist(&app, "5INjqkS1o8h1imAzPqGZBb")
-	fmt.Println(artists.Name)
+	fmt.Println(url.String())
+	time.Sleep(20 * time.Second)
+
+	artist, _ := internal.GetArtist(&app, "5INjqkS1o8h1imAzPqGZBb")
+	fmt.Println(artist.Name)
 }
