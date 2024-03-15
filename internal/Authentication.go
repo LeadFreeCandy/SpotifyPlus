@@ -19,18 +19,9 @@ func generateRandomString(n int) string {
 	return string(b)
 }
 
-// InitializeAuthenticationRoute Adds authentication handling to the server router.
-// It exposes an extraHandler parameter which is optional, which will be executed at the end.
-// If provided the extraHandler is expected to handle generating a valid httpResponse
-func (app *AppState) InitializeAuthenticationRoute(extraHandler func(http.ResponseWriter, *http.Request)) error {
-	redirectURI, err := url.Parse(app.config.RedirectURI)
-	extraHandlerExists := extraHandler != nil
-	app.logger.Info("Initializing Authentication Route", zap.Bool("ExtraHandlerExists", extraHandlerExists))
-	if err != nil {
-		app.logger.Error("URI", zap.Error(err))
-		return err
-	}
-	app.serverMux.HandleFunc(redirectURI.Path, func(writer http.ResponseWriter, request *http.Request) {
+// Pulled out for mocking and unit tests
+func (app *AppState) createAuthenticationHandler(extraHandler func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
 		logger := app.logger.With(
 			zap.String("service", "Auth Callback"),
 			zap.String("request", request.RequestURI),
@@ -51,7 +42,21 @@ func (app *AppState) InitializeAuthenticationRoute(extraHandler func(http.Respon
 		}
 		// Else we just return a simple OK
 		writer.WriteHeader(http.StatusOK)
-	})
+	}
+}
+
+// InitializeAuthenticationRoute Adds authentication handling to the server router.
+// It exposes an extraHandler parameter which is optional, which will be executed at the end.
+// If provided the extraHandler is expected to handle generating a valid httpResponse
+func (app *AppState) InitializeAuthenticationRoute(extraHandler func(http.ResponseWriter, *http.Request)) error {
+	redirectURI, err := url.Parse(app.config.RedirectURI)
+	extraHandlerExists := extraHandler != nil
+	app.logger.Info("Initializing Authentication Route", zap.Bool("ExtraHandlerExists", extraHandlerExists))
+	if err != nil {
+		app.logger.Error("URI", zap.Error(err))
+		return err
+	}
+	app.serverMux.HandleFunc(redirectURI.Path, app.createAuthenticationHandler(extraHandler))
 
 	return nil
 }
