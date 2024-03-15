@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 	"image"
-
 	_ "image/jpeg"
 	_ "image/png"
 	"os"
 	"strings"
+	"time"
 
 	//gitlab.com/ethanbakerdev/colors
 	"github.com/charmbracelet/bubbles/help"
@@ -16,9 +16,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	tsize "github.com/kopoli/go-terminal-size"
 )
 
 // for testing purposes and this is cool
+
+type tickMsg time.Time
+
 func getImage(directory string) image.Image {
 	file, err := os.Open(directory)
 	if err != nil {
@@ -60,38 +65,38 @@ type keyMap struct {
 var help_keys = keyMap{
 	skip: key.NewBinding(
 		key.WithKeys("right"),
-		key.WithHelp("→", "Skip"),
+		key.WithHelp("→:", "Skip"),
 	),
 	back: key.NewBinding(
 		key.WithKeys("left"),
-		key.WithHelp("←", "Back"),
+		key.WithHelp("←:", "Back"),
 	),
 	play: key.NewBinding(
 		key.WithKeys("space"),
-		key.WithHelp("Space", "Pause/Play"),
+		key.WithHelp("Space:", "Pause/Play"),
 	),
 	quit: key.NewBinding(
 		key.WithKeys("q"),
-		key.WithHelp("q", "Quit"),
+		key.WithHelp("q:", "Quit"),
 	),
 	//Put change view at the bottom of the page
 	//GOTTA CENTER THIS BITCH
 	simple: key.NewBinding(
-		key.WithHelp("tab", "Change view"),
+		key.WithHelp("tab:", "Change view"),
 		key.WithKeys("tab"),
 	),
 	ve: key.NewBinding(
-		key.WithHelp("press h for", "help"),
+		key.WithHelp("h:", "Hide"),
 		key.WithKeys("h"),
 	),
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.ve} //get rid and just use helpstyle
+	return []key.Binding{k.back, k.skip, k.play, k.quit, k.simple, k.ve} //get rid and just use helpstyle
 }
 
 func (k keyMap) FullHelp() [][]key.Binding { //same can prolly get rid of this at some point
-	return [][]key.Binding{{k.back, k.skip, k.play, k.quit, k.simple}}
+	return [][]key.Binding{{}}
 }
 
 type model struct {
@@ -105,16 +110,25 @@ type model struct {
 	is_simple     bool
 }
 
+func getWindowSize() [2]int {
+	var p [2]int
+	s, _ := tsize.GetSize()
+	p[0] = s.Width
+	p[1] = s.Height
+	return p
+}
+
 func initialModel() model {
 
 	return model{
-		choices: []string{"◀◀ ", "||", "▶▶"},
-
+		choices:       []string{"◀◀ ", "||", "▶▶"},
 		selected:      make(map[int]struct{}),
 		help_keys:     help_keys,
 		help:          help.New(),
 		song_progress: progress.New(progress.WithoutPercentage()),
 		is_simple:     false,
+		width:         getWindowSize()[0],
+		height:        getWindowSize()[1],
 	}
 }
 func RGBToHex(r, g, b, a uint32) string {
@@ -168,22 +182,30 @@ func init_cover() string {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.EnterAltScreen
 
+	return tea.Batch(tickCmd(), tea.EnterAltScreen)
+}
+
+func (m model) back() {
+	//fill
+}
+
+func (m model) skip() {
+	//fill
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.song_progress.Width = 30
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.song_progress.Width = msg.Width / 3
 	case tea.KeyMsg:
 
 		switch msg.String() {
 
 		case "ctrl+c", "q":
-			//PRINT SOMETHING ON EXIT
 			return m, tea.Quit
 
 		case "left":
@@ -201,9 +223,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "tab":
-			m.help.ShowAll = m.help.ShowAll
 			m.is_simple = !m.is_simple
 		}
+	case tickMsg:
+		if m.song_progress.Percent() == 1.0 {
+			return m, nil
+		}
+		cmd := m.song_progress.IncrPercent(0.01)
+		return m, tea.Batch(tickCmd(), cmd)
+	//antiwhen the progress bar wants to increase
+	case progress.FrameMsg:
+		progressModel, cmd := m.song_progress.Update(msg)
+		m.song_progress = progressModel.(progress.Model)
+		return m, cmd
 	}
 
 	return m, nil
@@ -225,7 +257,7 @@ func (m model) View() string {
 		}
 	}
 	song_time := "9:99"
-	//make this into a variable called by main and fix the size with constants or width
+	//TODO: make this into a variable called by main and fix the size with constants or width
 	//of messsage
 	progress_line := strings.Repeat("\n", 2) +
 		"0:00 " +
@@ -234,15 +266,13 @@ func (m model) View() string {
 		"\n"
 	boxed_text := lipgloss.JoinVertical(lipgloss.Center, progress_line, info, option_text, "\n")
 	//normal view
-	fmt.Printf("%d", m.height/2)
 	//Enter WINDOWS ALTSCREEN
 	if !m.is_simple {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Bottom,
-			border.Render(boxed_text)+strings.Repeat("\n", int(m.height/2))+(help_menu))
+			border.Render(boxed_text)+"\n"+strings.Repeat("\n", m.height/2-6)+(help_menu))
 	}
 	//simple view
 	//TODO: IF THE STRING REPEAT GOES NEGATIVE YOU ARE FCKED
-	fmt.Printf("%d", m.height/2)
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Bottom,
 		"0:00"+
 			" / "+song_time+
@@ -251,6 +281,13 @@ func (m model) View() string {
 			"\n"+strings.Repeat("\n", m.height/2-2)+strings.Repeat(" ", 0)+(help_menu))
 	//fix the hhardcoded value of 3e
 	//the -2 is for the size of the text being output so the help will be at the bottom of the screen
+}
+
+// taken straight from bubbletea time example
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Second*1, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
 }
 
 func main() {
