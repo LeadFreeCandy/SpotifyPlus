@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type Album struct {
@@ -84,4 +85,40 @@ func GetAlbum(app *AppState, id string, market string) (*Album, error) {
 	}
 
 	return album, nil
+}
+
+func GetAlbums(app *AppState, ids []string, market string) ([]*Album, error) {
+	requestPath := (&url.URL{}).JoinPath("/albums")
+	commaSeperatedIds := strings.Join(ids, ",")
+	query := requestPath.Query()
+	query.Add("id", commaSeperatedIds)
+
+	if market != "" {
+		query.Add("market", market)
+	}
+
+	requestPath.RawQuery = query.Encode()
+
+	request, err := app.generateApiRequest(http.MethodGet, requestPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	defer result.Body.Close()
+
+	jsonDecoder := json.NewDecoder(result.Body)
+	albumsList := struct {
+		Albums []*Album `json:"albums"`
+	}{}
+	err = jsonDecoder.Decode(&albumsList)
+	if err != nil {
+		return nil, err
+	}
+
+	return albumsList.Albums, nil
 }
