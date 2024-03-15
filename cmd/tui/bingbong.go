@@ -18,7 +18,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// for testing purposes
+// for testing purposes and this is cool
 func getImage(directory string) image.Image {
 	file, err := os.Open(directory)
 	if err != nil {
@@ -32,10 +32,20 @@ func getImage(directory string) image.Image {
 
 var (
 	border = lipgloss.NewStyle().
-		Padding(1, 3).
+		//Padding(1, 3).
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("63")).
-		Copy().Align(lipgloss.Bottom)
+		Copy().
+		Align(lipgloss.Center, lipgloss.Center)
+)
+
+var (
+	helpBarStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
+		Background(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#353533"})
+)
+var (
+	fullHelpText = "→ Skip • ← Back • q Quit • tab Change View • space Pause/Play • l Like"
 )
 
 type keyMap struct {
@@ -44,6 +54,7 @@ type keyMap struct {
 	play   key.Binding
 	quit   key.Binding
 	simple key.Binding
+	ve     key.Binding
 }
 
 var help_keys = keyMap{
@@ -61,22 +72,26 @@ var help_keys = keyMap{
 	),
 	quit: key.NewBinding(
 		key.WithKeys("q"),
-		key.WithHelp("q", "quit"),
+		key.WithHelp("q", "Quit"),
 	),
 	//Put change view at the bottom of the page
 	//GOTTA CENTER THIS BITCH
 	simple: key.NewBinding(
-		key.WithHelp("tab", "change view"),
+		key.WithHelp("tab", "Change view"),
 		key.WithKeys("tab"),
+	),
+	ve: key.NewBinding(
+		key.WithHelp("press h for", "help"),
+		key.WithKeys("h"),
 	),
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.back, k.skip, k.play, k.quit, k.simple} //get rid and just use helpstyle
+	return []key.Binding{k.ve} //get rid and just use helpstyle
 }
 
 func (k keyMap) FullHelp() [][]key.Binding { //same can prolly get rid of this at some point
-	return [][]key.Binding{{k.simple}}
+	return [][]key.Binding{{k.back, k.skip, k.play, k.quit, k.simple}}
 }
 
 type model struct {
@@ -154,10 +169,10 @@ func init_cover() string {
 
 func (m model) Init() tea.Cmd {
 	return tea.EnterAltScreen
+
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -168,6 +183,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 
 		case "ctrl+c", "q":
+			//PRINT SOMETHING ON EXIT
 			return m, tea.Quit
 
 		case "left":
@@ -175,15 +191,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "right":
 			//skip
+		case "h":
+			m.help.ShowAll = !m.help.ShowAll
 		case "space", " ":
-			if m.choices[1] == " ▶" {
+			if m.choices[1] == "▶ " {
 				m.choices[1] = "||"
 			} else {
-				m.choices[1] = " ▶"
+				m.choices[1] = "▶ "
 			}
 
 		case "tab":
-			m.help.ShowAll = !m.help.ShowAll
+			m.help.ShowAll = m.help.ShowAll
 			m.is_simple = !m.is_simple
 		}
 	}
@@ -198,39 +216,41 @@ func (m model) View() string {
 
 	help_menu := m.help.View(m.help_keys)
 	info := song + " • " + artist + "\n"
-	option_text := "\t"
+	option_text := ""
 	for i := 0; i < len(m.choices); i++ {
-
-		option_text += fmt.Sprintf("%s\t", m.choices[i])
-
+		if i != len(m.choices)-1 {
+			option_text += fmt.Sprintf("%s\t", m.choices[i])
+		} else {
+			option_text += fmt.Sprintf("%s", m.choices[i])
+		}
 	}
 	song_time := "9:99"
 	//make this into a variable called by main and fix the size with constants or width
 	//of messsage
-	//box size test for border.
-	big_space := ""
-	for i := 0; i < m.height/2; i++ {
-		big_space += strings.Repeat(" ", m.width/4)
-		big_space += "\n"
-	}
-
+	progress_line := strings.Repeat("\n", 2) +
+		"0:00 " +
+		m.song_progress.View() +
+		" " + song_time +
+		"\n"
+	boxed_text := lipgloss.JoinVertical(lipgloss.Center, progress_line, info, option_text, "\n")
+	//normal view
+	fmt.Printf("%d", m.height/2)
+	//Enter WINDOWS ALTSCREEN
 	if !m.is_simple {
-		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-			big_space+
-				"0:00 "+
-				m.song_progress.View()+
-				" "+song_time+
-				"\n"+
-				info+border.Render(option_text)+
-				"\n"+help_menu)
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Bottom,
+			border.Render(boxed_text)+strings.Repeat("\n", int(m.height/2))+(help_menu))
 	}
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+	//simple view
+	//TODO: IF THE STRING REPEAT GOES NEGATIVE YOU ARE FCKED
+	fmt.Printf("%d", m.height/2)
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Bottom,
 		"0:00"+
 			" / "+song_time+
 			"\n"+
 			info+
-			"\n"+strings.Repeat(" ", 3)+help_menu)
+			"\n"+strings.Repeat("\n", m.height/2-2)+strings.Repeat(" ", 0)+(help_menu))
 	//fix the hhardcoded value of 3e
+	//the -2 is for the size of the text being output so the help will be at the bottom of the screen
 }
 
 func main() {
