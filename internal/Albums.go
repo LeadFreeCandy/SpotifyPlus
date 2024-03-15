@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -70,14 +71,14 @@ func GetAlbum(app *AppState, id string, market string) (*Album, error) {
 		return nil, err
 	}
 
-	result, err := (&http.Client{}).Do(request)
+	response, err := (&http.Client{}).Do(request)
 	if err != nil {
 		return nil, err
 	}
 
-	defer result.Body.Close()
+	defer response.Body.Close()
 
-	decoder := json.NewDecoder(result.Body)
+	decoder := json.NewDecoder(response.Body)
 	album := &Album{}
 	err = decoder.Decode(album)
 	if err != nil {
@@ -104,14 +105,14 @@ func GetAlbums(app *AppState, ids []string, market string) ([]*Album, error) {
 		return nil, err
 	}
 
-	result, err := (&http.Client{}).Do(request)
+	response, err := (&http.Client{}).Do(request)
 	if err != nil {
 		return nil, err
 	}
 
-	defer result.Body.Close()
+	defer response.Body.Close()
 
-	jsonDecoder := json.NewDecoder(result.Body)
+	jsonDecoder := json.NewDecoder(response.Body)
 	albumsList := struct {
 		Albums []*Album `json:"albums"`
 	}{}
@@ -121,4 +122,50 @@ func GetAlbums(app *AppState, ids []string, market string) ([]*Album, error) {
 	}
 
 	return albumsList.Albums, nil
+}
+
+type AlbumTracksResponse struct {
+	Href     string          `json:"href"`
+	Limit    int             `json:"limit"`
+	Next     string          `json:"next"`
+	Offset   int             `json:"offset"`
+	Previous string          `json:"previous"`
+	Total    int             `json:"total"`
+	Items    SimplifiedTrack `json:"items"`
+}
+
+func GetAlbumTracks(app *AppState, id string, market string, limit int, offset int) (*AlbumTracksResponse, error) {
+	requestPath := (&url.URL{}).JoinPath("/albums").JoinPath(id).JoinPath("tracks")
+
+	query := requestPath.Query()
+	if market != "" {
+		query.Add("market", market)
+	}
+	if limit != 0 {
+		query.Add("limit", strconv.Itoa(limit))
+	}
+	if offset != 0 {
+		query.Add("offset", strconv.Itoa(offset))
+	}
+	requestPath.RawQuery = query.Encode()
+
+	request, err := app.generateApiRequest(http.MethodGet, requestPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	decoder := json.NewDecoder(response.Body)
+	albumTracksResponse := &AlbumTracksResponse{}
+	err = decoder.Decode(albumTracksResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return albumTracksResponse, nil
 }
