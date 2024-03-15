@@ -8,38 +8,84 @@ const {
 } = Spicetify;
 
 const CONFIG = {
-    activeTab: "Tinder",
-    tabs: ["Tinder", "Other"]
-};
-
-// Load More Icon component
-const LoadMoreIcon = (props) => {
-    return react.createElement("button", { onClick: props.onClick }, "Load More");
-};
-
-// Loading Icon component
-const LoadingIcon = () => {
-    return react.createElement("div", null, "Loading...");
+    activeTab: "Main",
+    tabs: ["Main","Recent Songs"]
 };
 
 // Top Bar Content component
 const TopBarContent = (props) => {
-    return react.createElement("div", null,
+    return react.createElement("div", {
+        style: {
+            display: "flex",
+            paddingTop: "15px",
+            justifyContent: "flex-start", // Align tabs to the left
+            gap: "100px", // Adjust the spacing between tabs
+        }
+    },
         props.links.map((link) =>
-            react.createElement("a", {
+            react.createElement("div", {
                 key: link,
-                className: link === props.activeLink ? 'active' : ''
-            }, link)
+                style: {
+                    position: "relative",
+                }
+            },
+                react.createElement("a", {
+                    className: link === props.activeLink ? 'active' : '',
+                    style: {
+                        padding: "10px 20px", // Adjust the padding of the tabs
+                        borderRadius: "20px", // Add border radius to create rounded edges
+                        border: "1px solid white", // Add border with white color
+                        color: "white", // Set text color
+                        textDecoration: "none", // Remove underline
+                    }
+                }, link),
+            )
         )
     );
 };
 
+/*
+const fetchTrack = async (uri) => {
+    const res = await Spicetify.CosmosAsync.get(`https://api.spotify.com/v1/tracks/${uri.split(':')[2]}`);
+    return res.name;
+};
+*/
+function clearsong() {
+    return Spicetify.Platform.LocalStorageAPI.clearItem(this.songname)
+        .then(() => true) // Resolves to true if the item is successfully cleared
+        .catch(() => false); // Resolves to false if there's an error while clearing the item
+}
+/*used like this: 
+clearsong()
+    .then(success => {
+        if (success) {
+            console.log("Item successfully cleared.");
+        } else {
+            console.error("Failed to clear item.");
+        }
+    });
+*/
+function handleLike(){
+    //Spicetify.Platform.LocalStorageAPI.setItem(this.songname, { liked: true, skipped: false, song: this.song});
 
-const cardList = ["Tinder1", "Other1", "Spot+"];
+    return "Liked Song";
+}
+function handleDislike(){
+    //Spicetify.Platform.LocalStorageAPI.setItem(this.songname, { liked: false, skipped: false,song: this.song });
+
+    
+    return "Disliked Song";
+}
+function handleSkip(){
+    //Spicetify.Platform.LocalStorageAPI.setItem(this.songname, { liked: false, skipped: false, song: this.song });
+
+    return "Skip Song";
+}
 // The main custom app render function. The component returned is what is rendered in Spotify.
 function render() {
     return react.createElement(Grid, { title: "SpotifyPlus" });
 }
+
 
 // Our main component
 class Grid extends react.Component {
@@ -65,16 +111,62 @@ class Grid extends react.Component {
                 className: "main-gridContainer-gridContainer",
                 "data-tab": CONFIG.activeTab,
                 style: {
-                    "--minimumColumnWidth": "180px",
+                    display: "flex",
+                    justifyContent: "space-between", // This will evenly distribute the items
+                    flexWrap: "wrap", // Allow items to wrap to the next line if needed
                 },
-            }, [...cardList]),
+            }),
             react.createElement("footer", {
                 style: {
                     margin: "auto",
+                    bottom: 0,
+                    left: 0,
+                    position: "fixed",
                     textAlign: "center",
+                    width: "100%", // Ensure the footer spans the full width
+                    paddingTop: "20px", // Add padding at the top for spacing
+                    paddingBottom: "40px"
                 },
-            }, !this.state.endOfList && (this.state.rest ? react.createElement(LoadMoreIcon, { onClick: this.loadMore.bind(this) }) : react.createElement(LoadingIcon)),
-            ), react.createElement(TopBarContent, {
+            }, 
+                react.createElement("div", {
+                    style: {
+                        display: "flex",
+                        justifyContent: "space-around", // This will evenly distribute the buttons
+                        
+                    },
+                },
+                react.createElement("button", {
+                    //onClick: () => handleDislike(param1, param2), // Call handleDislike with parameters
+                    onClick: handleDislike,
+                    style: {
+                        backgroundColor: "red", // Change the background color of the button
+                        color: "white", // Change the text color of the button
+                        border: "none", // Remove the border
+                        padding: "10px 20px", // Add padding
+                        borderRadius: "5px", // Add border radius
+                    }
+                }, "Dislike"),
+                react.createElement("button", {
+                    onClick: handleSkip,
+                    style: {
+                        backgroundColor: "blue", // Change the background color of the button
+                        color: "white", // Change the text color of the button
+                        border: "none", // Remove the border
+                        padding: "10px 20px", // Add padding
+                        borderRadius: "5px", // Add border radius
+                    }
+                }, "Skip"),
+                react.createElement("button", {
+                    onClick: handleLike,
+                    style: {
+                        backgroundColor: "green", // Change the background color of the button
+                        color: "white", // Change the text color of the button
+                        border: "none", // Remove the border
+                        padding: "10px 20px", // Add padding
+                        borderRadius: "5px", // Add border radius
+                    }
+                }, "Like"),)),
+                react.createElement(TopBarContent, {
                 links: CONFIG.tabs,
                 activeLink: CONFIG.activeTab,
             })
