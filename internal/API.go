@@ -66,8 +66,6 @@ type Copyright struct {
 	Type string `json:"type"`
 }
 
-var baseAPI, _ = url.Parse("https://api.spotify.com/v1")
-
 func (app *AppState) generateApiRequest(method string, path *url.URL, body io.Reader) (*http.Request, error) {
 	baseAPI, _ := url.Parse("https://api.spotify.com/v1")
 

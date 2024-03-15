@@ -1,2 +1,3 @@
 redirectURI: "http://localhost:7777/callback"
 clientID: "263fb77a1fbc48e5a02cb8c2130d42ff"
+port: 7777

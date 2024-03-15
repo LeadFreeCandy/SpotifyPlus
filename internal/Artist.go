@@ -2,8 +2,11 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+
+	"go.uber.org/zap"
 )
 
 type Artist struct {
@@ -35,10 +38,13 @@ func GetArtist(app *AppState, id string) (*Artist, error) {
 	//generate API request, serve to http client
 	req, err := app.generateApiRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
+		app.logger.Error("Failed to generate request", zap.Error(err))
 		return nil, err
 	}
+
 	res, err := (&http.Client{}).Do(req)
 	if err != nil {
+		app.logger.Error("Client failed request", zap.Error(err))
 		return nil, err
 	}
 	defer res.Body.Close()
@@ -48,8 +54,8 @@ func GetArtist(app *AppState, id string) (*Artist, error) {
 	artist := &Artist{}
 	err = decoder.Decode(artist)
 	if err != nil {
+		fmt.Println(err.Error())
 		return nil, err
 	}
-
 	return artist, nil
 }
