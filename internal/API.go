@@ -4,6 +4,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	"go.uber.org/zap"
 )
 
 type SimplifiedImage struct {
@@ -67,10 +69,16 @@ type Copyright struct {
 var baseAPI, _ = url.Parse("https://api.spotify.com/v1")
 
 func (app *AppState) generateApiRequest(method string, path *url.URL, body io.Reader) (*http.Request, error) {
-	apiURI := baseAPI.JoinPath(path.Path)
-	apiURI.RawQuery = path.RawQuery
+	baseAPI, _ := url.Parse("https://api.spotify.com/v1")
 
-	request, err := http.NewRequest(method, apiURI.RequestURI(), body)
+	app.logger.Info("Base api", zap.String("baseAPI", baseAPI.String()))
+	apiURI := baseAPI.JoinPath(path.Path)
+
+	apiURI.RawQuery = path.RawQuery
+	app.logger.Info("api request", zap.String("url", apiURI.String()))
+
+	request, err := http.NewRequest(method, apiURI.String(), body)
+
 	if err != nil {
 		return nil, err
 	}
