@@ -37,7 +37,6 @@ func getImage(directory string) image.Image {
 
 var (
 	border = lipgloss.NewStyle().
-		//Padding(1, 3).
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("63")).
 		Copy().
@@ -53,13 +52,27 @@ var (
 	fullHelpText = "→ Skip • ← Back • q Quit • tab Change View • space Pause/Play • l Like"
 )
 
+var (
+	selectedStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ff7ac6")).
+		Bold(true)
+)
+
+var (
+	unselectedStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ffffff")).
+		Bold(true)
+)
+
 type keyMap struct {
-	skip   key.Binding
-	back   key.Binding
-	play   key.Binding
-	quit   key.Binding
-	simple key.Binding
-	ve     key.Binding
+	skip    key.Binding
+	back    key.Binding
+	play    key.Binding
+	quit    key.Binding
+	simple  key.Binding
+	ve      key.Binding
+	like    key.Binding
+	dislike key.Binding
 }
 
 var help_keys = keyMap{
@@ -73,14 +86,12 @@ var help_keys = keyMap{
 	),
 	play: key.NewBinding(
 		key.WithKeys("space"),
-		key.WithHelp("Space:", "Pause/Play"),
+		key.WithHelp("Space:", "Pause"),
 	),
 	quit: key.NewBinding(
 		key.WithKeys("q"),
 		key.WithHelp("q:", "Quit"),
 	),
-	//Put change view at the bottom of the page
-	//GOTTA CENTER THIS BITCH
 	simple: key.NewBinding(
 		key.WithHelp("tab:", "Change view"),
 		key.WithKeys("tab"),
@@ -89,14 +100,22 @@ var help_keys = keyMap{
 		key.WithHelp("h:", "Hide"),
 		key.WithKeys("h"),
 	),
+	like: key.NewBinding(
+		key.WithHelp("l:", "Like"),
+		key.WithKeys("l"),
+	),
+	dislike: key.NewBinding(
+		key.WithHelp("d:", "Dislike"),
+		key.WithKeys("d"),
+	),
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.back, k.skip, k.play, k.quit, k.simple, k.ve} //get rid and just use helpstyle
+	return []key.Binding{} //get rid and just use helpstyle
 }
 
 func (k keyMap) FullHelp() [][]key.Binding { //same can prolly get rid of this at some point
-	return [][]key.Binding{{}}
+	return [][]key.Binding{{k.back, k.skip, k.play}, {k.like, k.dislike, k.ve}, {k.quit, k.simple}}
 }
 
 type model struct {
@@ -108,6 +127,8 @@ type model struct {
 	height        int
 	song_progress progress.Model
 	is_simple     bool
+	is_liked      bool
+	is_disliked   bool
 }
 
 func getWindowSize() [2]int {
@@ -120,8 +141,8 @@ func getWindowSize() [2]int {
 
 func initialModel() model {
 
-	return model{
-		choices:       []string{"◀◀ ", "||", "▶▶"},
+	m := model{
+		choices:       []string{"</3", "◀◀ ", "||", "▶▶", "<3"},
 		selected:      make(map[int]struct{}),
 		help_keys:     help_keys,
 		help:          help.New(),
@@ -129,7 +150,12 @@ func initialModel() model {
 		is_simple:     false,
 		width:         getWindowSize()[0],
 		height:        getWindowSize()[1],
+		is_liked:      false,
+		is_disliked:   false,
 	}
+	m.help.ShowAll = true
+	return m
+
 }
 func RGBToHex(r, g, b, a uint32) string {
 
@@ -187,11 +213,11 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) back() {
-	//fill
+
 }
 
 func (m model) skip() {
-	//fill
+
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -213,6 +239,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "right":
 			//skip
+		case "l":
+
+			if m.is_liked {
+				m.choices[4] = "<3"
+			} else {
+				m.choices[0] = "</3"
+				m.choices[4] = selectedStyle.Render("<3")
+				m.is_disliked = false
+			}
+			m.is_liked = !m.is_liked
+		case "d":
+			if m.is_disliked {
+				m.choices[0] = "</3"
+			} else {
+				m.choices[4] = "<3"
+				m.choices[0] = selectedStyle.Render("</3")
+				m.is_liked = false
+			}
+			m.is_disliked = !m.is_disliked
 		case "h":
 			m.help.ShowAll = !m.help.ShowAll
 		case "space", " ":
@@ -229,9 +274,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.song_progress.Percent() == 1.0 {
 			return m, nil
 		}
-		cmd := m.song_progress.IncrPercent(0.01)
+		cmd := m.song_progress.IncrPercent(0.1)
 		return m, tea.Batch(tickCmd(), cmd)
-	//antiwhen the progress bar wants to increase
+	//anticipates when the progress bar needs to be increased
 	case progress.FrameMsg:
 		progressModel, cmd := m.song_progress.Update(msg)
 		m.song_progress = progressModel.(progress.Model)
@@ -257,30 +302,32 @@ func (m model) View() string {
 		}
 	}
 	song_time := "9:99"
-	//TODO: make this into a variable called by main and fix the size with constants or width
-	//of messsage
 	progress_line := strings.Repeat("\n", 2) +
 		"0:00 " +
 		m.song_progress.View() +
 		" " + song_time +
 		"\n"
 	boxed_text := lipgloss.JoinVertical(lipgloss.Center, progress_line, info, option_text, "\n")
+	whole_text := lipgloss.JoinVertical(lipgloss.Center, border.Render(boxed_text), "\n"+strings.Repeat("\n", m.height/2-8), (help_menu))
 	//normal view
-	//Enter WINDOWS ALTSCREEN
+	return_string := strings.Builder{}
 	if !m.is_simple {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Bottom,
-			border.Render(boxed_text)+"\n"+strings.Repeat("\n", m.height/2-6)+(help_menu))
+			whole_text)
 	}
 	//simple view
 	//TODO: IF THE STRING REPEAT GOES NEGATIVE YOU ARE FCKED
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Bottom,
+	return_string.WriteString(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Bottom,
 		"0:00"+
 			" / "+song_time+
 			"\n"+
 			info+
-			"\n"+strings.Repeat("\n", m.height/2-2)+strings.Repeat(" ", 0)+(help_menu))
-	//fix the hhardcoded value of 3e
-	//the -2 is for the size of the text being output so the help will be at the bottom of the screen
+			"\n"+strings.Repeat("\n", m.height/2-4)+strings.Repeat(" ", 0)+(help_menu)))
+	// , lipgloss.WithWhitespaceChars("Spotify"), lipgloss.WithWhitespaceForeground(subtle)
+	// add in the parantheses
+
+	return return_string.String()
+
 }
 
 // taken straight from bubbletea time example
