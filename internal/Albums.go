@@ -169,3 +169,54 @@ func GetAlbumTracks(app *AppState, id string, market string, limit int, offset i
 
 	return albumTracksResponse, nil
 }
+
+type SavedAlbum struct {
+	AddedAt string `json:"added_at"`
+	Album   Album  `json:"album"`
+}
+
+type SavedAlbumsResponse struct {
+	Href     string     `json:"href"`
+	Limit    int        `json:"limit"`
+	Next     string     `json:"next"`
+	Offset   int        `json:"offset"`
+	Previous string     `json:"previous"`
+	Total    int        `json:"total"`
+	Items    SavedAlbum `json:"items"`
+}
+
+func GetSavedAlbums(app *AppState, market string, limit int, offset int) (*SavedAlbumsResponse, error) {
+	requestPath := (&url.URL{}).JoinPath("/me/albums")
+
+	query := requestPath.Query()
+	if market != "" {
+		query.Add("market", market)
+	}
+	if limit != 0 {
+		query.Add("limit", strconv.Itoa(limit))
+	}
+	if offset != 0 {
+		query.Add("offset", strconv.Itoa(offset))
+	}
+	requestPath.RawQuery = query.Encode()
+
+	request, err := app.generateApiRequest(http.MethodGet, requestPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	decoder := json.NewDecoder(response.Body)
+	savedAlbumResponse := &SavedAlbumsResponse{}
+	err = decoder.Decode(savedAlbumResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return savedAlbumResponse, nil
+}
