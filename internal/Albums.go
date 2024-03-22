@@ -242,3 +242,24 @@ func SaveAlbums(app *AppState, ids []string) error {
 
 	return nil
 }
+
+func DeleteAlbums(app *AppState, ids []string) error {
+	requestPath := (&url.URL{}).JoinPath("/me/albums")
+	body, err := json.Marshal(ids)
+	if err != nil {
+		return err
+	}
+	reader := bytes.NewReader(body)
+	request, err := app.generateApiRequest(http.MethodDelete, requestPath, reader)
+	if err != nil {
+		return err
+	}
+
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	return nil
+}
