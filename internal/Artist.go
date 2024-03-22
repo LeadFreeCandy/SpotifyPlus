@@ -47,7 +47,7 @@ func GetArtist(app *AppState, id string) (*Artist, error) {
 		app.logger.Error("Client failed request", zap.Error(err))
 		return nil, err
 	}
-	defer res.Body.Close()
+	println(res.Status)
 
 	//decode json response, return artist
 	decoder := json.NewDecoder(res.Body)
