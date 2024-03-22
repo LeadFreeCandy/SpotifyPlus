@@ -1,5 +1,14 @@
 package internal
 
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
+
+	"go.uber.org/zap"
+)
+
 type Playback struct {
 	Device struct {
 		ID               string `json:"id"`
@@ -120,4 +129,30 @@ type Playback struct {
 		TogglingRepeatTrack   bool `json:"toggling_repeat_track"`
 		TransferringPlayback  bool `json:"transferring_playback"`
 	} `json:"actions"`
+}
+
+func GetPlayback(app *AppState) (*Playback, error) {
+	reqURL := (&url.URL{}).JoinPath("/me/player")
+	req, err := app.generateApiRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		app.logger.Error("Failed to generate request", zap.Error(err))
+		return nil, err
+	}
+
+	res, err := (&http.Client{}).Do(req)
+	if err != nil {
+		app.logger.Error("Client failed request", zap.Error(err))
+		return nil, err
+	}
+	println(res.Status)
+
+	//decode json response, return playback state
+	decoder := json.NewDecoder(res.Body)
+	playback := &Playback{}
+	err = decoder.Decode(playback)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, err
+	}
+	return playback, nil
 }
