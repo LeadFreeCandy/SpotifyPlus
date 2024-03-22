@@ -21,7 +21,6 @@ function ifItemIsTrack(uri) {
     return false;
 }
 
-
 // Top Bar Content component
 const TopBarContent = (props) => {
     return react.createElement("div", {
@@ -54,6 +53,9 @@ const TopBarContent = (props) => {
     );
 };
 
+//Get playlist ID by copying link to playlist, for example
+//https://open.spotify.com/playlist/37i9dQZF1DWXRqgorJj26U?si=9f6A6U2jTk-njyZJ64rk3g ID would be 37i9dQZF1DWXRqgorJj26U
+const playlistId = "2it9p5n9Eit7iGVy1djNP0";
 async function retrieve(playlistId) {
     try {
         // Get the playlist using Spicetify wrapper
@@ -109,7 +111,8 @@ clearsong()
 */
 
 async function nextsong(uri){
-    await Spicetify.addToQueue([{ uri: uri }]);
+    Spicetify.Player.playUri(uri);
+
 }
 
 // Example usage:
@@ -118,7 +121,7 @@ const trackUri = "spotify:track:4iV5W9uYEdYUVa79Axb7Rh";
 async function handleLike() {
     try {
         // Assuming send() is an asynchronous function
-        await send();
+        await send("liked");
     } catch (error) {
         console.error("Error sending like to LLM:", error);
     }
@@ -140,18 +143,56 @@ async function handleLike() {
 
 }
 
-function handleDislike(){
-    //Spicetify.Platform.LocalStorageAPI.setItem(this.songname, { liked: false, skipped: false,song: this.song });
+async function handleDislike() {
+    try {
+        // Assuming send() is an asynchronous function
+        await send("disliked");
+    } catch (error) {
+        console.error("Error sending like to LLM:", error);
+    }
 
-    
-    return "Disliked Song";
+    let uri;
+    try {
+        // Assuming retrievenext() is an asynchronous function
+        uri = await retrievenext();
+    } catch (error) {
+        console.error("Error retrieving next song from LLM:", error);
+    }
+
+    try {
+        // Assuming nextsong(uri) is an asynchronous function
+        await nextsong(uri);
+    } catch (error) {
+        console.error("Error playing next song:", error);
+    }
+
 }
-function handleSkip(){
-    //Spicetify.Platform.LocalStorageAPI.setItem(this.songname, { liked: false, skipped: false, song: this.song });
+async function handleSkip() {
+    try {
+        // Assuming send() is an asynchronous function
+        await send("skipped");
+    } catch (error) {
+        console.error("Error sending like to LLM:", error);
+    }
 
-    return "Skip Song";
+    let uri;
+    try {
+        // Assuming retrievenext() is an asynchronous function
+        uri = await retrievenext();
+    } catch (error) {
+        console.error("Error retrieving next song from LLM:", error);
+    }
+
+    try {
+        // Assuming nextsong(uri) is an asynchronous function
+        await nextsong(uri);
+    } catch (error) {
+        console.error("Error playing next song:", error);
+    }
+
 }
 function handlePlaySong(){
+    nextsong(trackUri);
     return 
 }
 // The main custom app render function. The component returned is what is rendered in Spotify.
