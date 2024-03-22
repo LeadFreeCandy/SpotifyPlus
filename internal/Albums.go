@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -219,4 +220,25 @@ func GetSavedAlbums(app *AppState, market string, limit int, offset int) (*Saved
 	}
 
 	return savedAlbumResponse, nil
+}
+
+func SaveAlbums(app *AppState, ids []string) error {
+	requestPath := (&url.URL{}).JoinPath("/me/albums")
+	body, err := json.Marshal(ids)
+	if err != nil {
+		return err
+	}
+	reader := bytes.NewReader(body)
+	request, err := app.generateApiRequest(http.MethodPut, requestPath, reader)
+	if err != nil {
+		return err
+	}
+
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	return nil
 }
