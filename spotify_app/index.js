@@ -1,4 +1,5 @@
 // Grab any variables you need
+
 const react = Spicetify.React;
 const reactDOM = Spicetify.ReactDOM;
 const {
@@ -79,9 +80,17 @@ async function retrieve(playlistId) {
     }
 }
 
-async function retrievenext(){
-    return trackUri;
-}
+async function retrievenext() {
+    const popSongs = [
+    'spotify:track:3GCL1PydwsLodcpv0Ll1ch',
+    'spotify:track:1p80LdxRV74UKvL8gnD7ky',
+    'spotify:track:273dCMFseLcVsoSWx59IoE',
+  ];
+    const randomIndex = Math.floor(Math.random() * popSongs.length);
+    return popSongs[randomIndex];
+  };
+
+
 async function send(){
     /*
     Uncreated function to send information of the song and information on wether it was liked/disliked/skipped.
