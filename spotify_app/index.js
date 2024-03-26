@@ -80,8 +80,6 @@ async function retrieve(playlistId) {
     }
 }
 
-
-
 async function retrievenext() {
     const popSongs = [
     'spotify:track:3GCL1PydwsLodcpv0Ll1ch',
@@ -91,7 +89,6 @@ async function retrievenext() {
     const randomIndex = Math.floor(Math.random() * popSongs.length);
     return popSongs[randomIndex];
   };
-
 
 
 async function send(){
